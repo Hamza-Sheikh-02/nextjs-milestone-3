@@ -1,8 +1,11 @@
+// src/app/posts/[id]/page.tsx
 "use client";
 
-import { notFound } from "next/navigation";
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import DOMPurify from "dompurify";
+import React from "react";
 
 const postContent: { [key: number]: { title: string; content: string } } = {
   1: {
@@ -115,27 +118,36 @@ const postContent: { [key: number]: { title: string; content: string } } = {
   },
 };
 
-export default function PostPage({ params }: { params: { id: string } }) {
+export default function PostPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const [postId, setPostId] = useState<number | null>(null);
   const [comments, setComments] = useState<string[]>([]);
   const [newComment, setNewComment] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     const fetchParams = async () => {
-      const id = parseInt(params.id, 10);
-      setPostId(id);
+      const resolvedParams = await params;
+      const id = parseInt(resolvedParams.id, 10);
+      if (!isNaN(id)) {
+        setPostId(id);
+      } else {
+        router.push("/404");
+      }
     };
 
     fetchParams();
-  }, [params.id]);
+  }, [params, router]);
 
-  // Early return after state and hooks are initialized
   if (postId === null) return <div>Loading...</div>;
 
   const post = postContent[postId];
 
   if (!post) {
-    notFound();
+    return <div>Post not found.</div>;
   }
 
   const handleCommentSubmit = (e: React.FormEvent) => {
@@ -146,11 +158,13 @@ export default function PostPage({ params }: { params: { id: string } }) {
     }
   };
 
+  const sanitizedContent = DOMPurify.sanitize(post.content);
+
   return (
     <div className="flex justify-center items-center min-h-screen pt-12">
       <div className="prose lg:prose-xl mx-auto text-center">
         <h1 className="text-4xl font-bold text-gray-800 mb-4">{post.title}</h1>
-        <div dangerouslySetInnerHTML={{ __html: post.content }}></div>
+        <div dangerouslySetInnerHTML={{ __html: sanitizedContent }}></div>
 
         <div className="mt-8">
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">
